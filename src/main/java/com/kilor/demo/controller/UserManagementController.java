@@ -1,6 +1,8 @@
 package com.kilor.demo.controller;
 
+import com.kilor.demo.entity.LoginLog;
 import com.kilor.demo.entity.User;
+import com.kilor.demo.service.UserService;
 import com.kilor.demo.repository.UserRepository;
 import com.kilor.demo.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,9 @@ public class UserManagementController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserService userService;
 
     private String getUsername(HttpServletRequest request) {
         String token = request.getHeader("Authorization");
@@ -123,5 +128,23 @@ public class UserManagementController {
         r.put("ok", true);
         r.put("deletedId", id);
         return r;
+    }
+
+    // GET /api/admin/login-logs - recent login logs
+    @GetMapping("/login-logs")
+    public Map<String, Object> getLoginLogs(HttpServletRequest request,
+                                            @RequestParam(defaultValue = "7") int days) {
+        if (!isAdmin(request)) return errorResponse("需要管理员权限");
+        List<LoginLog> logs = userService.getRecentLoginLogs(days);
+        List<Map<String, Object>> result = logs.stream().map(l -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", l.getId());
+            m.put("username", l.getUsername());
+            m.put("loginTime", l.getLoginTime());
+            m.put("ip", l.getIp());
+            m.put("success", l.isSuccess());
+            return m;
+        }).collect(Collectors.toList());
+        return okResponse("logs", result);
     }
 }

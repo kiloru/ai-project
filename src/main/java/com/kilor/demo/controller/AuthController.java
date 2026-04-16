@@ -2,6 +2,7 @@ package com.kilor.demo.controller;
 
 import com.kilor.demo.dto.LoginRequest;
 import com.kilor.demo.dto.LoginResponse;
+import com.kilor.demo.entity.LoginLog;
 import com.kilor.demo.entity.User;
 import com.kilor.demo.service.UserService;
 import com.kilor.demo.util.JwtUtil;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,12 +27,32 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @PostMapping("/auth/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         LoginResponse response = userService.login(request);
         if (response != null) {
+            String ip = getClientIp(httpRequest);
+            String ua = httpRequest.getHeader("User-Agent");
+            userService.recordLogin(response.getUsername(), ip, ua, true);
             return ResponseEntity.ok(response);
         }
+        String ip = getClientIp(httpRequest);
+        String ua = httpRequest.getHeader("User-Agent");
+        userService.recordLogin(request.getUsername(), ip, ua, false);
         return ResponseEntity.status(401).body(Collections.singletonMap("message", "用户名或密码错误"));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 
     @GetMapping("/user/info")
