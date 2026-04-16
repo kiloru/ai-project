@@ -13,28 +13,25 @@ public class TokenController {
     @Autowired
     private TokenService tokenService;
 
-    @GetMapping("/info")
-    public Map<String, Object> getTokenInfo(@RequestParam String address) {
+    /**
+     * Save holder snapshot (called by frontend after fetching from Etherscan)
+     */
+    @PostMapping("/snapshot")
+    public Map<String, Object> saveSnapshot(@RequestBody Map<String, Object> payload) {
         try {
-            Map<String, Object> data = tokenService.getTokenInfo(address);
-            return response(true, data, null);
+            String contractAddress = (String) payload.get("contractAddress");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> holders = (List<Map<String, Object>>) payload.get("holders");
+            tokenService.saveSnapshot(contractAddress, holders);
+            return response(true, null, null);
         } catch (Exception e) {
             return response(false, null, e.getMessage());
         }
     }
 
-    @GetMapping("/holders")
-    public Map<String, Object> getTokenHolders(@RequestParam String address) {
-        try {
-            List<Map<String, Object>> holders = tokenService.getTokenHolders(address);
-            // Save snapshot after successful fetch
-            tokenService.saveSnapshot(address, holders);
-            return response(true, holders, null);
-        } catch (Exception e) {
-            return response(false, null, e.getMessage());
-        }
-    }
-
+    /**
+     * Get 7-day holder changes by comparing snapshots
+     */
     @GetMapping("/history")
     public Map<String, Object> getHistory(@RequestParam String address,
                                           @RequestParam(defaultValue = "7") int days) {
